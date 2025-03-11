@@ -1,4 +1,4 @@
-package main
+package packet
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 // Function to list network interfaces
-func listInterfaces() {
+func ListInterfaces() {
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
 		log.Fatal("Error finding devices: ", err)
@@ -22,7 +22,7 @@ func listInterfaces() {
 }
 
 // Function to capture network traffic on an interface
-func capturePackets(interfaceName string) {
+func CapturePackets(interfaceName string) {
 	handle, err := pcap.OpenLive(interfaceName, 1600, true, pcap.BlockForever)
 	if err != nil {
 		log.Fatal(err)
