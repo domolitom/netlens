@@ -8,16 +8,21 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/domolitom/netlens/internal/util"
 )
 
 // Worker pool size (to avoid overloading resources)
 const MaxWorkers = 50
 const ScanTimeout = 200 * time.Millisecond
 
+var counter = 0
+var counterLock sync.Mutex
+
 // Function to check if a host:port combination is open
 func isPortOpen(ip string, port int, wg *sync.WaitGroup, resultChan chan string) {
 	defer wg.Done() // Mark this goroutine as done when finished
-	target := parseIP(ip, port)
+	target := util.ParseIP(ip, port)
 
 	// Apply timeout per connection attempt
 	conn, err := net.DialTimeout("tcp", target, ScanTimeout)
@@ -25,15 +30,9 @@ func isPortOpen(ip string, port int, wg *sync.WaitGroup, resultChan chan string)
 		conn.Close()
 		resultChan <- ip // Send found IP to result channel
 	}
-}
-
-// Function to parse IP and port into a target string
-func parseIP(ip string, port int) string {
-	if net.ParseIP(ip).To4() != nil {
-		return fmt.Sprintf("%s:%d", ip, port)
-	} else {
-		return fmt.Sprintf("[%s]:%d", ip, port)
-	}
+	counterLock.Lock()
+	counter++
+	counterLock.Unlock()
 }
 
 // Function to scan the entire Docker subnet in **parallel** while avoiding timeout
@@ -158,6 +157,16 @@ func sendRequest(ip string, port int) {
 }
 
 func main() {
+
+	//print container IP
+	containerIp, err := util.GetContainerIP()
+	if err != nil {
+		fmt.Println("Error getting container IP:", err)
+	} else {
+		//make this print bold
+		fmt.Printf("\033[1mContainer IP address: %s\033[0m\n", containerIp)
+	}
+
 	// Detect Docker subnet dynamically
 	subnet, err := getDockerSubnet()
 	if err != nil {
@@ -178,6 +187,8 @@ func main() {
 		fmt.Println("No active containers found with port", port, "open.")
 		return
 	}
+
+	fmt.Println(counter, " ip addresses scanned")
 
 	// get the first active container IP
 	ip := activeIPs[0]
