@@ -1,4 +1,4 @@
-package util
+package utils
 
 import (
 	"fmt"
@@ -29,4 +29,20 @@ func GetContainerIP() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no valid IP address found")
+}
+
+// Helper function to increment an IP address
+func IncrementIP(ip net.IP) net.IP {
+	newIP := make(net.IP, len(ip))
+	copy(newIP, ip)
+
+	// Start incrementing from the last byte
+	for i := len(newIP) - 1; i >= 0; i-- {
+		newIP[i]++
+		// If there's no overflow (not rolled over to zero), stop
+		if newIP[i] != 0 {
+			break
+		}
+	}
+	return newIP
 }
