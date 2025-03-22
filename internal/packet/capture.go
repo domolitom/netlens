@@ -25,7 +25,7 @@ func ListInterfaces() {
 
 // Function to capture network traffic on an interface
 func CapturePackets(interfaceName string) {
-	handle, err := pcap.OpenLive(interfaceName, 1600, true, pcap.BlockForever)
+	handle, err := pcap.OpenLive(interfaceName, 1600, false, pcap.BlockForever)
 	if err != nil {
 		log.Fatal(err)
 	}
