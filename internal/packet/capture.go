@@ -48,19 +48,56 @@ captureLoop:
 	for {
 		select {
 		case packet := <-packetSource.Packets():
-			// Extract IP layer
-			if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-				ip, _ := ipLayer.(*layers.IPv4)
+			switch {
+			case packet.Layer(layers.LayerTypeIPv4) != nil:
+				ip, _ := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
 				srcIP := ip.SrcIP.String()
 				destIP := ip.DstIP.String()
 				ipPairs[[2]string{srcIP, destIP}]++
-				fmt.Printf("Packet from %s to %s\n", srcIP, destIP)
-			} else {
-				fmt.Println("No IP layer found.")
+				fmt.Printf("IPv4 Packet from %s to %s\n", srcIP, destIP)
+			case packet.Layer(layers.LayerTypeIPv6) != nil:
+				ip, _ := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+				srcIP := ip.SrcIP.String()
+				destIP := ip.DstIP.String()
+				ipPairs[[2]string{srcIP, destIP}]++
+				fmt.Printf("IPv6 Packet from %s to %s\n", srcIP, destIP)
+			case packet.Layer(layers.LayerTypeEthernet) != nil:
+				ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
+				ethernetPacket, _ := ethernetLayer.(*layers.Ethernet)
+				fmt.Println("Ethernet type: ", ethernetPacket.EthernetType)
+			case packet.Layer(layers.LayerTypeTCP) != nil:
+				tcpLayer := packet.Layer(layers.LayerTypeTCP)
+				tcp, _ := tcpLayer.(*layers.TCP)
+				fmt.Println("TCP src port: ", tcp.SrcPort)
+				fmt.Println("TCP dst port: ", tcp.DstPort)
+			case packet.Layer(layers.LayerTypeUDP) != nil:
+				udpLayer := packet.Layer(layers.LayerTypeUDP)
+				udp, _ := udpLayer.(*layers.UDP)
+				fmt.Println("UDP src port: ", udp.SrcPort)
+				fmt.Println("UDP dst port: ", udp.DstPort)
+			case packet.Layer(layers.LayerTypeDNS) != nil:
+				dnsLayer := packet.Layer(layers.LayerTypeDNS)
+				dns, _ := dnsLayer.(*layers.DNS)
+				fmt.Println("DNS query: ", dns.Questions)
+			case packet.Layer(layers.LayerTypeICMPv4) != nil:
+				icmpLayer := packet.Layer(layers.LayerTypeICMPv4)
+				icmp, _ := icmpLayer.(*layers.ICMPv4)
+				fmt.Println("ICMP type: ", icmp.TypeCode.Type())
+				fmt.Println("ICMP code: ", icmp.TypeCode.Code())
+			case packet.Layer(layers.LayerTypeICMPv6) != nil:
+				icmpLayer := packet.Layer(layers.LayerTypeICMPv6)
+				icmp, _ := icmpLayer.(*layers.ICMPv6)
+				fmt.Println("ICMP type: ", icmp.TypeCode.Type())
+				fmt.Println("ICMP code: ", icmp.TypeCode.Code())
+			case packet.Layer(layers.LayerTypeARP) != nil:
+				arpLayer := packet.Layer(layers.LayerTypeARP)
+				arp, _ := arpLayer.(*layers.ARP)
+				fmt.Println("ARP operation: ", arp.Operation)
+				fmt.Println("ARP source IP: ", arp.SourceProtAddress)
+				fmt.Println("ARP destination IP: ", arp.DstProtAddress)
+			default:
+				fmt.Println("Unknown packet type.")
 			}
-
-			// Print some packet info
-			//fmt.Println(packet)
 		case <-timeout:
 			// Timeout reached, exit the loop
 			fmt.Println("\n⏰ Timeout reached, stopping packet capture.")
