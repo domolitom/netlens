@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"github.com/domolitom/netlens/internal/packet"
-	"github.com/domolitom/netlens/internal/util"
+	"github.com/domolitom/netlens/internal/utils"
 )
 
 func main() {
 	//print container IP
-	ip, err := util.GetContainerIP()
+	ip, err := utils.GetContainerIP()
 	if err != nil {
 		fmt.Println("Error getting container IP:", err)
 	} else {

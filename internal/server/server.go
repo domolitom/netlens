@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/domolitom/netlens/internal/util"
+	"github.com/domolitom/netlens/internal/utils"
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -15,7 +15,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	//print container IP
-	ip, err := util.GetContainerIP()
+	ip, err := utils.GetContainerIP()
 	if err != nil {
 		fmt.Println("Error getting container IP:", err)
 	} else {

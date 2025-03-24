@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -9,59 +10,92 @@ import (
 	"sync"
 	"time"
 
-	"github.com/domolitom/netlens/internal/util"
+	"github.com/domolitom/netlens/internal/utils"
 )
 
 // Worker pool size (to avoid overloading resources)
-const MaxWorkers = 50
+const MaxWorkers = 1
 const ScanTimeout = 200 * time.Millisecond
 
 var counter = 0
 var counterLock sync.Mutex
 
-// Function to check if a host:port combination is open
-func isPortOpen(ip string, port int, wg *sync.WaitGroup, resultChan chan string) {
-	defer wg.Done() // Mark this goroutine as done when finished
-	target := util.ParseIP(ip, port)
+func isPortOpen(ctx context.Context, ip string, port int, wg *sync.WaitGroup, resultChan chan string, cancel context.CancelFunc) {
+	defer wg.Done()
 
-	// Apply timeout per connection attempt
-	conn, err := net.DialTimeout("tcp", target, ScanTimeout)
-	if err == nil {
-		conn.Close()
-		resultChan <- ip // Send found IP to result channel
+	// Stop immediately if another worker found an open port (context is cancelled)
+	if ctx.Err() != nil {
+		return
 	}
+
+	target := utils.ParseIP(ip, port)
+	conn, err := net.DialTimeout("tcp", target, ScanTimeout)
+
 	counterLock.Lock()
 	counter++
 	counterLock.Unlock()
+
+	if err == nil {
+		conn.Close()
+		select {
+		case <-ctx.Done():
+			return
+		case resultChan <- ip:
+			fmt.Printf("✅ IP %s is open, stopping scan.\n", ip)
+			cancel() // Cancel all other workers
+		}
+	} else {
+		fmt.Printf("❌ IP %s is closed.\n", ip)
+	}
 }
 
 // Function to scan the entire Docker subnet in **parallel** while avoiding timeout
+// Subnet is in CIDR notation (e.g., "172.18.0.0/16")
 func scanDockerNetwork(subnet string, port int) []string {
 	var activeIPs []string
 	var wg sync.WaitGroup
-	resultChan := make(chan string, 255) // Buffered channel to hold results
-	ipChan := make(chan string, 255)     // Channel to queue IPs for scanning
+	resultChan := make(chan string, 1) // Result channel for open IP
+	ipChan := make(chan string, 100)   // Channel to queue IPs for scanning
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Parse the subnet and determine the range of IP addresses to scan
+	ip, ipNet, err := net.ParseCIDR(subnet)
+	if err != nil {
+		fmt.Println("Error parsing subnet:", err)
+		return activeIPs
+	}
 
 	// Worker pool to control concurrency
 	for i := 0; i < MaxWorkers; i++ {
 		go func() {
 			for ip := range ipChan {
-				isPortOpen(ip, port, &wg, resultChan)
+				isPortOpen(ctx, ip, port, &wg, resultChan, cancel)
 			}
 		}()
 	}
 
 	// Populate IP list for scanning
-	for i := 1; i <= 254; i++ {
-		wg.Add(1)
-		ip := fmt.Sprintf("%s.%d", subnet, i)
-		ipChan <- ip
+	for ip := ip.Mask(ipNet.Mask); ipNet.Contains(ip); ip = utils.IncrementIP(ip) {
+		if ip.IsLoopback() {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			break
+		default:
+			ipStr := ip.String()
+			wg.Add(1)
+			ipChan <- ipStr
+		}
 	}
 	close(ipChan) // Close channel when all IPs are sent to workers
 
 	// Wait for all workers to finish checking
-	wg.Wait()
+	wg.Wait() // Wait for all workers to finish checking
 	close(resultChan)
+
 	// Collect all results
 	for ip := range resultChan {
 		fmt.Println("Found active container on:", ip)
@@ -101,12 +135,12 @@ func getDockerSubnet() (string, error) {
 				continue
 			}
 
-			// Return the first 3 octets (e.g., "172.18.0")
-			ipParts := strings.Split(ip.String(), ".")
-			if len(ipParts) == 4 {
-				fmt.Println("Detected Docker subnet IP:", ip.String()) // Debugging info
-				return fmt.Sprintf("%s.%s.%s", ipParts[0], ipParts[1], ipParts[2]), nil
-			}
+			// Calculate the network address
+			networkIP := ip.Mask(ipNet.Mask)
+			ones, _ := ipNet.Mask.Size()
+			subnet := fmt.Sprintf("%s/%d", networkIP.String(), ones)
+			fmt.Printf("Detected Docker subnet: %s\n", subnet) // Debugging info
+			return subnet, nil
 		}
 	}
 
@@ -159,7 +193,7 @@ func sendRequest(ip string, port int) {
 func main() {
 
 	//print container IP
-	containerIp, err := util.GetContainerIP()
+	containerIp, err := utils.GetContainerIP()
 	if err != nil {
 		fmt.Println("Error getting container IP:", err)
 	} else {
