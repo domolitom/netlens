@@ -10,6 +10,11 @@ import (
 	"github.com/google/gopacket/pcap"
 )
 
+const (
+	// The same default as tcpdump.
+	defaultSnapLen = 262144
+)
+
 // Function to list network interfaces
 func ListInterfaces() {
 	devices, err := pcap.FindAllDevs()
@@ -25,7 +30,7 @@ func ListInterfaces() {
 
 // Function to capture network traffic on an interface
 func CapturePackets(interfaceName string) {
-	handle, err := pcap.OpenLive(interfaceName, 1600, false, pcap.BlockForever)
+	handle, err := pcap.OpenLive(interfaceName, defaultSnapLen, true, pcap.BlockForever)
 	if err != nil {
 		log.Fatal(err)
 	}
