@@ -3,6 +3,7 @@ package packet
 import (
 	"fmt"
 	"log"
+	"net"
 	"time"
 
 	"github.com/domolitom/netlens/internal/utils"
@@ -58,7 +59,12 @@ captureLoop:
 			} else if packet.Layer(layers.LayerTypeARP) != nil {
 				arpLayer := packet.Layer(layers.LayerTypeARP)
 				arp, _ := arpLayer.(*layers.ARP)
-				fmt.Printf("ARP operation: %d, source IP: %s, destination IP: %s, timestamp: %d\n", arp.Operation, arp.SourceProtAddress, arp.DstProtAddress, packet.Metadata().Timestamp.Unix())
+
+				srcIP := net.IP(arp.SourceProtAddress).String()
+				destIP := net.IP(arp.DstProtAddress).String()
+
+				fmt.Printf("ARP operation: %d, source IP: %s, destination IP: %s, timestamp: %d\n",
+					arp.Operation, srcIP, destIP, packet.Metadata().Timestamp.Unix())
 			} else {
 				fmt.Printf("Unhandled packet layer type. Layers: %s", utils.GetPacketLayers(packet))
 			}
