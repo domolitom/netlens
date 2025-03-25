@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/domolitom/netlens/internal/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -53,16 +54,13 @@ captureLoop:
 				srcIP := ip.SrcIP.String()
 				destIP := ip.DstIP.String()
 				ipPairs[[2]string{srcIP, destIP}]++
-				fmt.Printf("IPv4 Packet from %s to %s\n", srcIP, destIP)
-			}
-			if packet.Layer(layers.LayerTypeARP) != nil {
+				fmt.Printf("IPv4 Packet from %s to %s at %d\n", srcIP, destIP, packet.Metadata().Timestamp.Unix())
+			} else if packet.Layer(layers.LayerTypeARP) != nil {
 				arpLayer := packet.Layer(layers.LayerTypeARP)
 				arp, _ := arpLayer.(*layers.ARP)
-				fmt.Println("ARP operation: ", arp.Operation)
-				fmt.Println("ARP source IP: ", arp.SourceProtAddress)
-				fmt.Println("ARP destination IP: ", arp.DstProtAddress)
+				fmt.Printf("ARP operation: %d, source IP: %s, destination IP: %s, timestamp: %d\n", arp.Operation, arp.SourceProtAddress, arp.DstProtAddress, packet.Metadata().Timestamp.Unix())
 			} else {
-				fmt.Println("Unknown packet type.")
+				fmt.Printf("Unhandled packet layer type. Layers: %s", utils.GetPacketLayers(packet))
 			}
 		case <-timeout:
 			// Timeout reached, exit the loop

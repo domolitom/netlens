@@ -3,6 +3,9 @@ package utils
 import (
 	"fmt"
 	"net"
+	"strings"
+
+	"github.com/google/gopacket"
 )
 
 // Function to parse IP and port into a target string
@@ -45,4 +48,13 @@ func IncrementIP(ip net.IP) net.IP {
 		}
 	}
 	return newIP
+}
+
+// It returns the layers of a packet as a string separated by commas
+func GetPacketLayers(packet gopacket.Packet) string {
+	var layers []string
+	for _, layer := range packet.Layers() {
+		layers = append(layers, layer.LayerType().String())
+	}
+	return strings.Join(layers, ", ")
 }
