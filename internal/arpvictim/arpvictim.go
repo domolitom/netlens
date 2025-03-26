@@ -2,35 +2,26 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"os/exec"
 	"strings"
 )
 
 func printArpTable() {
 	// Read the ARP table from /proc
-	data, err := os.ReadFile("/proc/net/arp")
+	cmd := exec.Command("arp", "-a")
+	output, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("Error reading ARP cache: %v\n", err)
+		fmt.Println("Error reading ARP cache:", err)
 		return
 	}
 
-	lines := strings.Split(string(data), "\n")
-
-	fmt.Println("Cached ARP Entries:")
-	for i, line := range lines {
-		// Skip header
-		if i == 0 || strings.TrimSpace(line) == "" {
+	fmt.Println("Cached ARP Entries (via arp -a):")
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 6 {
-			continue
-		}
-		ip := fields[0]
-		mac := fields[3]
-		ifName := fields[5]
-
-		fmt.Printf("IP: %-15s MAC: %-17s Interface: %s\n", ip, mac, ifName)
+		fmt.Println(line)
 	}
 }
 
