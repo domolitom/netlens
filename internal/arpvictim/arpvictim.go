@@ -1,26 +1,113 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"runtime"
 	"strings"
+	"time"
 )
 
+type ARPEntry struct {
+	IP     string
+	HWType string
+	Flags  string
+	MAC    string
+	Device string
+}
+
 func printArpTable() {
-	// Read the ARP table from /proc
-	cmd := exec.Command("arp", "-a")
-	output, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second) // Timeout after 10s
+	defer cancel()
+
+	if runtime.GOOS == "linux" {
+		file, err := os.Open("/proc/net/arp")
+		if err != nil {
+			fmt.Printf("Error reading ARP cache: %v\n", err)
+			return
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		lineNum := 0
+		for scanner.Scan() {
+			line := scanner.Text()
+			lineNum++
+			// Skip header row
+			if lineNum == 1 {
+				continue
+			}
+			fields := strings.Fields(line)
+			if len(fields) >= 6 {
+				entry := ARPEntry{
+					IP:     fields[0],
+					HWType: fields[1],
+					Flags:  fields[2],
+					MAC:    fields[3],
+					Device: fields[5],
+				}
+				fmt.Printf("IP: %s, MAC: %s via %s\n", entry.IP, entry.MAC, entry.Device)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Printf("Scanner error: %v\n", err)
+		}
+		return
+
+	}
+
+	// Select the command based on OS
+	cmd := exec.CommandContext(ctx, "arp", "-a") // Use "ip neigh show" for Linux
+
+	// Get a pipe to read real-time stdout
+	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Println("Error reading ARP cache:", err)
+		fmt.Println("Error creating stdout pipe:", err)
 		return
 	}
 
-	fmt.Println("Cached ARP Entries (via arp -a):")
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		fmt.Println("Error starting command:", err)
+		return
+	}
+
+	// Store printed output in a slice
+	var outputLines []string
+
+	// Read output line by line while the command is running
+	fmt.Println("Cached ARP Entries:")
+	scanner := bufio.NewScanner(stdoutPipe)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			fmt.Println(line)                       // Print each line in real-time
+			outputLines = append(outputLines, line) // Save for later use
 		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading output:", err)
+	}
+
+	// Wait for the command to complete
+	err = cmd.Wait()
+
+	// Handle timeout separately
+	if ctx.Err() == context.DeadlineExceeded {
+		fmt.Println("⏳ Info: Command timed out, returning partial output.")
+	} else if err != nil {
+		fmt.Println("⚠️ Command execution error:", err)
+	}
+
+	// ✅ Return the collected ARP cache
+	fmt.Println("\n🔹 Final Cached ARP Entries List (collected before timeout):")
+	for _, line := range outputLines {
 		fmt.Println(line)
 	}
 }
