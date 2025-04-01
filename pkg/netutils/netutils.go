@@ -1,11 +1,14 @@
-package net
+package netutils
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -88,4 +91,37 @@ func FindDefaultGateway() (net.IP, error) {
 	}
 
 	return nil, fmt.Errorf("default gateway not found")
+}
+
+func FindDefaultGateway_() (string, error) {
+	switch runtime.GOOS {
+	case "windows":
+		return "", nil //findDefaultGatewayWindows()
+	case "darwin":
+		return findDefaultGatewayDarwin()
+	case "linux":
+		return "", nil //findDefaultGatewayLinux()
+	default:
+		return "", fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+}
+
+// macOS implementation for gateway
+func findDefaultGatewayDarwin() (string, error) {
+	cmd := exec.Command("netstat", "-nr")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[0] == "default" {
+			return fields[1], nil
+		}
+	}
+
+	return "", fmt.Errorf("default gateway not found")
 }
