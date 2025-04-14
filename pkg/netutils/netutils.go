@@ -118,7 +118,7 @@ func findDefaultGatewayDarwin() (string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[0] == "default" {
+		if len(fields) >= 3 && fields[0] == "default" && net.ParseIP(fields[1]) != nil {
 			return fields[1], nil
 		}
 	}
