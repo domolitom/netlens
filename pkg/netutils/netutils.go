@@ -93,7 +93,7 @@ func FindDefaultGateway() (net.IP, error) {
 	return nil, fmt.Errorf("default gateway not found")
 }
 
-func FindDefaultGateway() (string, error) {
+func FindDefaultGateway_() (string, error) {
 	switch runtime.GOOS {
 	case "windows":
 		return "", nil //findDefaultGatewayWindows()
