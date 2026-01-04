@@ -1,11 +1,8 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/google/gopacket"
@@ -284,35 +281,4 @@ func (s *ARPSpoofer) Stop() {
 
 	fmt.Println("ARP spoofing stopped, ARP tables restored")
 	s.handle.Close()
-}
-
-func test() {
-	iface := flag.String("i", "", "Network interface to use")
-	gateway := flag.String("g", "", "Gateway IP address")
-	target := flag.String("t", "", "Target IP address")
-	verbose := flag.Bool("v", false, "Verbose output")
-	flag.Parse()
-
-	if *iface == "" || *gateway == "" || *target == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	spoofer, err := NewARPSpoofer(*iface, *gateway, *target, *verbose)
-	if err != nil {
-		fmt.Printf("Error initializing ARP spoofer: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := spoofer.Start(); err != nil {
-		fmt.Printf("Error starting ARP spoofer: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Wait for Ctrl+C
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
-
-	spoofer.Stop()
 }
