@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+
+
 // ARPEntry represents a single ARP cache entry.
 type ARPEntry struct {
 	IPAddress       string
@@ -78,9 +80,9 @@ func parseARPOutput(output string) []ARPEntry {
 	return arpTable
 }
 
-// func main() {
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 // 	arpTable, err := GetARPTable(ctx)
 // 	if err != nil {
