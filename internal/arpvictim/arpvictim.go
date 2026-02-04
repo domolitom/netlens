@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -646,26 +645,4 @@ func setupHTTPServer() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("HTTP server error: %v", err)
 	}
-}
-
-// GetARPTable retrieves the current ARP table from the system.
-func GetARPTable() ([]ARPEntry, error) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("ip", "neigh")
-	case "darwin":
-		cmd = exec.Command("arp", "-a")
-	case "windows":
-		cmd = exec.Command("arp", "-a")
-	default:
-		return nil, fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
-	}
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute command: %w, output: %s", err, string(output))
-	}
-
-	return parseARPOutput(string(output)), nil
 }
