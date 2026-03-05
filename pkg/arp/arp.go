@@ -83,14 +83,3 @@ func parseARPOutput(output string) []ARPEntry {
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-// 	arpTable, err := GetARPTable(ctx)
-// 	if err != nil {
-// 		fmt.Println("Error:", err)
-// 		return
-// 	}
-
-// 	for _, entry := range arpTable {
-// 		fmt.Printf("IP: %s, MAC: %s, Interface: %s\n", entry.IPAddress, entry.HardwareAddress, entry.Interface)
-// 	}
-// }
