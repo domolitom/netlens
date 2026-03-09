@@ -58,5 +58,3 @@ func GetPacketLayers(packet gopacket.Packet) string {
 	}
 	return strings.Join(layers, ", ")
 }
-
-
