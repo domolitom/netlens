@@ -76,20 +76,21 @@ func scanDockerNetwork(subnet string, port int) []string {
 		}()
 	}
 
-	// Populate IP list for scanning
-	for ip := ip.Mask(ipNet.Mask); ipNet.Contains(ip); ip = utils.IncrementIP(ip) {
-		if ip.IsLoopback() {
-			continue
+		// Populate IP list for scanning
+	ipLoop:
+		for ip := ip.Mask(ipNet.Mask); ipNet.Contains(ip); ip = utils.IncrementIP(ip) {
+			if ip.IsLoopback() {
+				continue
+			}
+			select {
+			case <-ctx.Done():
+				break ipLoop
+			default:
+				ipStr := ip.String()
+				wg.Add(1)
+				ipChan <- ipStr
+			}
 		}
-		select {
-		case <-ctx.Done():
-			break
-		default:
-			ipStr := ip.String()
-			wg.Add(1)
-			ipChan <- ipStr
-		}
-	}
 	close(ipChan) // Close channel when all IPs are sent to workers
 
 	// Wait for all workers to finish checking
